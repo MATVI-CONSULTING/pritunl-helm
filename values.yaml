@@ -1,0 +1,178 @@
+# Valeurs par défaut du chart Pritunl.
+# Ce chart est PUBLIC : aucun secret / mot de passe en clair ne doit y figurer.
+# Les identifiants MongoDB sont soit auto-générés par le subchart Bitnami (défaut),
+# soit fournis via un Secret Kubernetes existant (voir la section « MongoDB »).
+
+replicas: 1
+
+image:
+  # Image Pritunl custom Matvi : embarque iproute2 / iptables / wireguard-tools,
+  # indispensables à la création de l'interface tun/WireGuard.
+  repository: ghcr.io/matvi-consulting/pritunl-docker-image
+  # Tag épinglé sur un SHA (build avec iproute2/iptables). À mettre à jour au besoin.
+  tag: 626a509a6ccb825936c6960984b8a639888166b3
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # Créer un ServiceAccount dédié.
+  create: true
+  # Nom du ServiceAccount. Si vide et create=true, un nom est généré.
+  name: ""
+
+# Pritunl doit créer une interface tun et manipuler iptables → privilèges requis.
+securityContext:
+  privileged: true
+  capabilities:
+    add:
+      - NET_ADMIN
+
+## Configuration du Service Pritunl
+service:
+  ## "LoadBalancer" (recommandé, pour exposer le VPN) ou "NodePort".
+  type: LoadBalancer
+  ## Protocole du port OpenVPN (TCP par défaut).
+  protocol: TCP
+  ## Port OpenVPN.
+  port: 1194
+  # nodePort: 30194
+
+  ## OpenVPN : port TCP exposé sur le LoadBalancer.
+  ## Activé par défaut (le LoadBalancer porte alors TCP 1194). C'est la
+  ## configuration Pritunl classique. Désactiver si vous ne voulez que WireGuard.
+  openvpn:
+    enabled: true
+
+  ## WireGuard : port UDP exposé sur le LoadBalancer.
+  ## Opt-in (désactivé par défaut). Pour l'activer : passer enabled à true, garder
+  ## web.enabled (le port 443 est indispensable à l'auth WG) et prévoir un LB
+  ## multi-protocole (voir examples/values-wg-only-ovh.yaml et la doc).
+  ## Doit correspondre au champ "WG Port" du serveur dans l'UI Pritunl.
+  ## NB : numéro DISTINCT du port OpenVPN (1194) — un même numéro pour TCP et UDP
+  ## entre en collision sur la clé de fusion des ports (l'entrée UDP est écrasée).
+  wireguard:
+    enabled: false
+    port: 1195
+
+  ## Web/HTTPS : port TCP exposé sur le LoadBalancer. Sert la console d'admin et,
+  ## surtout, INDISPENSABLE à WireGuard : l'auth WG de Pritunl passe par une
+  ## requête HTTPS sur le port 443 (codé en dur en version gratuite) AVANT
+  ## l'établissement du tunnel UDP. Sans ce port joignable à la Public Address, le
+  ## client WG reste bloqué à `wg_server_pub_key=false` puis time-out.
+  web:
+    enabled: true
+    port: 443
+
+  ## Annotations du Service (dépendantes du provider cloud).
+  ## Exemple OVHcloud (LoadBalancer Octavia, requis pour le multi-protocole
+  ## TCP+UDP sur un seul LB) : voir examples/values-wg-only-ovh.yaml.
+  ##   loadbalancer.ovhcloud.com/class: octavia
+  annotations: {}
+
+  ## IP fixe du LoadBalancer (Floating IP), si supportée par le provider.
+  # loadBalancerIP:
+  ## Restriction des sources autorisées. NB : inutilisable pour des clients WG
+  ## itinérants (IP variables).
+  # loadBalancerSourceRanges:
+  # - 10.10.10.0/24
+
+readinessProbe:
+  initialDelaySeconds: 5
+  periodSeconds: 15
+  successThreshold: 1
+
+ingress:
+  enabled: false
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# ---------------------------------------------------------------------------
+# MongoDB — trois stratégies possibles (voir README) :
+#
+#  (a) Auto-contenu (DÉFAUT) : mongodb.enabled=true. Le subchart Bitnami déploie
+#      un MongoDB et AUTO-GÉNÈRE le mot de passe. Le chart construit l'URI via
+#      `mongodbUriTemplate` et injecte le mot de passe depuis le Secret du
+#      subchart. Rien à fournir, aucun secret dans les values.
+#
+#  (b) existingSecret : mongoDBUriSecretName pointe vers un Secret k8s préexistant
+#      (SealedSecrets / ExternalSecrets) contenant l'URI Mongo complète. Idéal
+#      GitOps / MongoDB externe (mettre mongodb.enabled=false).
+#
+#  (c) URI inline : mongoURI="mongodb://user:pass@host/db". Le chart crée alors un
+#      Secret. À réserver aux outils qui injectent la valeur au déploiement
+#      (ex. Pulumi/Terraform) — NE JAMAIS committer une vraie valeur ici.
+# ---------------------------------------------------------------------------
+
+mongodb:
+  enabled: true
+  architecture: standalone
+  # Les images docker.io/bitnami/* ont été retirées du Docker Hub par Broadcom
+  # (2025). On pointe le dépôt legacy, gelé mais toujours pullable.
+  image:
+    registry: docker.io
+    repository: bitnamilegacy/mongodb
+    tag: 7.0.11-debian-12-r0
+  auth:
+    enabled: true
+    username: pritunl
+    database: pritunl
+    # Pas de `password` / `rootPassword` ici : auto-générés par le subchart.
+  extraFlags:
+    - --wiredTigerCacheSizeGB=0.25
+  persistence:
+    enabled: true
+    size: 10Gi
+  strategyType: Recreate
+
+## (b) Secret k8s existant contenant l'URI Mongo (stratégie existingSecret).
+## Laisser vide pour ne pas l'utiliser.
+mongoDBUriSecretName: ""
+## Clé, dans ce Secret, portant l'URI complète.
+mongoDBUriSecretKey: "PRITUNL_MONGODB_URI"
+
+## (c) URI Mongo inline (crée un Secret géré par le chart). Laisser vide sauf
+## injection par un outil externe. NE PAS committer de valeur réelle.
+# mongoURI: ""
+
+## Gabarit d'URI Mongo (mode auto-contenu). Vide = calculé par le helper à partir
+## de mongodb.auth.username / database, avec le mot de passe résolu au runtime.
+mongodbUriTemplate:
+
+## Mode auto-contenu : Secret et clé d'où lire le mot de passe MongoDB généré par
+## le subchart Bitnami (injecté en variable PRITUNL_MONGODB_PASSWORD). Les défauts
+## conviennent au subchart embarqué ; à surcharger si vous changez son nommage.
+# mongoPasswordSecretName: ""     # défaut : <release>-mongodb
+# mongoPasswordSecretKey: ""      # défaut : mongodb-passwords
+
+## /etc/pritunl/conf — sérialisé en JSON dans /etc/pritunl/pritunl.conf.
+conf:
+  # host_id : IDENTIFIANT D'INSTANCE. Laissé vide par défaut (chaque client doit
+  # fixer le sien pour préserver les réglages — dont la Public Address — entre
+  # redémarrages). Générer une valeur unique : `openssl rand -hex 16`.
+  # host_id: "<votre-host-id-unique>"
+  log_path: /var/log/pritunl.log
+  static_cache: true
+  temp_path: /tmp/pritunl_%r
+  bind_addr: "0.0.0.0"
+  www_path: /usr/share/pritunl/www
+  local_address_interface: auto
+  port: 443
+  "vpn.lib_iptables": true
+
+logs:
+  emptyDir: false

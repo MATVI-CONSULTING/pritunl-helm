@@ -1,0 +1,28 @@
+apiVersion: v2
+name: pritunl
+description: Chart Helm mutualisé pour déployer Pritunl (VPN OpenVPN/WireGuard) auto-hébergé, avec MongoDB embarqué ou externe.
+type: application
+appVersion: "1.29"
+version: 1.0.0
+home: https://pritunl.com/
+sources:
+  - https://github.com/MATVI-CONSULTING/pritunl-helm
+  - https://github.com/MATVI-CONSULTING/pritunl-docker-image
+maintainers:
+  - name: Matvi Consulting
+    email: contact@matvi-consulting.com
+keywords:
+  - pritunl
+  - vpn
+  - wireguard
+  - openvpn
+dependencies:
+  - name: common
+    repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+    tags:
+      - bitnami-common
+    version: 2.20.x
+  - name: mongodb
+    version: ~15.6.x
+    repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+    condition: mongodb.enabled

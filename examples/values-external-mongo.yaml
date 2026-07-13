@@ -1,0 +1,34 @@
+# Variante : MongoDB externe / GitOps (stratégie existingSecret).
+#
+# Le MongoDB embarqué est désactivé. L'URI Mongo complète est fournie via un
+# Secret k8s préexistant (créé par SealedSecrets, ExternalSecrets, ou à la main),
+# jamais en clair dans les values.
+#
+# Créer le Secret au préalable, ex. :
+#   kubectl -n vpn create secret generic pritunl-mongo \
+#     --from-literal=PRITUNL_MONGODB_URI='mongodb+srv://user:pass@cluster/pritunl'
+#
+# Installation :
+#   helm install pritunl . -n vpn --create-namespace -f examples/values-external-mongo.yaml
+
+# Pas de MongoDB embarqué.
+mongodb:
+  enabled: false
+
+# Secret k8s existant portant l'URI complète.
+mongoDBUriSecretName: "pritunl-mongo"
+mongoDBUriSecretKey: "PRITUNL_MONGODB_URI"
+
+service:
+  type: LoadBalancer
+  wireguard:
+    enabled: true
+    port: 1195
+  web:
+    enabled: true
+    port: 443
+  annotations:
+    loadbalancer.ovhcloud.com/class: octavia
+
+conf:
+  host_id: "REMPLACER_PAR_UN_HOST_ID_UNIQUE"

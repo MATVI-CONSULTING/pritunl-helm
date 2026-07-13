@@ -1,0 +1,42 @@
+name: Release Chart
+
+# Publie le chart empaqueté en tant qu'artefact OCI sur GHCR lors d'un tag `v*`.
+# Ex. : git tag v1.0.0 && git push origin v1.0.0
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  REGISTRY: ghcr.io
+  OCI_REPO: oci://ghcr.io/matvi-consulting/charts
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Login GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | helm registry login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
+
+      - name: Build dependencies & package
+        run: |
+          helm dependency build
+          helm package . --destination dist
+
+      - name: Push OCI
+        run: |
+          set -euo pipefail
+          CHART_TGZ=$(ls dist/pritunl-*.tgz)
+          helm push "$CHART_TGZ" "${{ env.OCI_REPO }}"

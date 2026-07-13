@@ -1,0 +1,29 @@
+# Variante : WireGuard seul sur OVHcloud (LoadBalancer Octavia).
+#
+# Le LoadBalancer porte TCP 443 (auth WG) + UDP 1195 (tunnel) à la même IP.
+# L'annotation octavia est requise pour un LB multi-protocole sur OVH MKS.
+#
+# Installation :
+#   helm dependency build
+#   helm install pritunl . -n vpn --create-namespace -f examples/values-wg-only-ovh.yaml
+
+service:
+  type: LoadBalancer
+  openvpn:
+    enabled: false
+  wireguard:
+    enabled: true
+    port: 1195
+  web:
+    enabled: true
+    port: 443
+  annotations:
+    loadbalancer.ovhcloud.com/class: octavia
+
+conf:
+  # Générer une valeur unique par instance : `openssl rand -hex 16`
+  host_id: "REMPLACER_PAR_UN_HOST_ID_UNIQUE"
+
+# MongoDB embarqué auto-généré (rien d'autre à fournir).
+mongodb:
+  enabled: true
