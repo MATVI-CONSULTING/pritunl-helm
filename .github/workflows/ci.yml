@@ -17,6 +17,9 @@ jobs:
         with:
           version: v3.16.2
 
+      - name: Add Bitnami archive repo
+        run: helm repo add bitnami https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+
       - name: Build chart dependencies
         run: helm dependency build
 
