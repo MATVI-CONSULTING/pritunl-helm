@@ -1,0 +1,30 @@
+# Variante : OpenVPN + WireGuard (les deux protocoles).
+#
+# Le LoadBalancer porte alors TCP 1194 (OpenVPN) + TCP 443 (auth WG / console) +
+# UDP 1195 (tunnel WG). Sur OVH, l'annotation octavia gère le multi-protocole.
+# Si vous ne voulez QUE OpenVPN, mettez wireguard.enabled et web.enabled à false
+# (le port 443 n'est indispensable qu'à WireGuard).
+#
+# Installation :
+#   helm install pritunl . -n vpn --create-namespace -f examples/values-openvpn.yaml
+
+service:
+  type: LoadBalancer
+  protocol: TCP
+  port: 1194
+  openvpn:
+    enabled: true
+  wireguard:
+    enabled: true
+    port: 1195
+  web:
+    enabled: true
+    port: 443
+  annotations:
+    loadbalancer.ovhcloud.com/class: octavia
+
+conf:
+  host_id: "REMPLACER_PAR_UN_HOST_ID_UNIQUE"
+
+mongodb:
+  enabled: true

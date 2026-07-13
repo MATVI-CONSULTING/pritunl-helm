@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-template:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Build chart dependencies
+        run: helm dependency build
+
+      - name: Helm lint
+        run: helm lint .
+
+      - name: Helm template (toutes les variantes)
+        run: |
+          set -euo pipefail
+          for f in examples/*.yaml; do
+            echo "::group::helm template -f $f"
+            helm template pritunl . -f "$f" > /dev/null
+            echo "::endgroup::"
+          done
+          # Rendu par défaut également
+          helm template pritunl . > /dev/null
+
+      - name: Vérifier l'absence de secret en clair
+        run: |
+          set -euo pipefail
+          if grep -RniE '(password|rootPassword)\s*[:=]\s*[^"'"'"' ].+' values.yaml examples/ \
+             | grep -viE 'PRITUNL_MONGODB_PASSWORD|passwordSecret|SecretKey|SecretName|mongodb-passwords'; then
+            echo "Secret potentiel en clair détecté" >&2
+            exit 1
+          fi

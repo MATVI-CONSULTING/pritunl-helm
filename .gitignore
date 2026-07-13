@@ -1,25 +1,21 @@
-.idea
-.terraform
-.terraform.lock.hcl
-*.backup
-
-# System Files
+# System files
 .DS_Store
 Thumbs.db
-dump.rdb
 
-node_modules
-*.d.ts
-*.js
-cdktf.out
-cdktf.log
-*terraform.*.tfstate*
-.gen
-tsconfig.tsbuildinfo
-!jest.config.js
-!setup.js
+# IDE
+.idea
+.vscode
+.claude
+
+# Secrets / env
 .env
 openrc.sh
 kubeconfig*
-*bmad*
-.claude
+*.backup
+
+# Helm
+# NB : charts/*.tgz (dépendances vendorisées) sont VOLONTAIREMENT committées
+# pour un chart auto-suffisant — ne pas les ignorer.
+dist/
+*.tgz
+!charts/*.tgz

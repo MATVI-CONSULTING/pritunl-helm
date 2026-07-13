@@ -1,0 +1,9 @@
+dependencies:
+- name: common
+  repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+  version: 2.20.2
+- name: mongodb
+  repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
+  version: 15.6.6
+digest: sha256:f947cfd30080ae22f1549a73632bf09b29836d142c8b40db9bf1b2ea1aff8c35
+generated: "2024-06-12T19:19:56.525971+02:00"
