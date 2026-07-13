@@ -1,0 +1,25 @@
+.idea
+.terraform
+.terraform.lock.hcl
+*.backup
+
+# System Files
+.DS_Store
+Thumbs.db
+dump.rdb
+
+node_modules
+*.d.ts
+*.js
+cdktf.out
+cdktf.log
+*terraform.*.tfstate*
+.gen
+tsconfig.tsbuildinfo
+!jest.config.js
+!setup.js
+.env
+openrc.sh
+kubeconfig*
+*bmad*
+.claude
