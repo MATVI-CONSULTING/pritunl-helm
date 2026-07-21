@@ -72,8 +72,12 @@ service:
   ##   loadbalancer.ovhcloud.com/class: octavia
   annotations: {}
 
-  ## IP fixe du LoadBalancer (Floating IP), si supportée par le provider.
-  # loadBalancerIP:
+  ## IP fixe du LoadBalancer. Sur OVHcloud, renseigner une Floating IP
+  ## PRÉ-RÉSERVÉE du projet : le LB conserve alors cette IP même s'il est recréé
+  ## (indispensable pour garder une Public Address Pritunl stable — sinon Pritunl
+  ## retombe sur l'IP d'egress auto-détectée). La Floating IP doit exister, sinon
+  ## le LB reste bloqué en provisioning.
+  # loadBalancerIP: "203.0.113.10"
   ## Restriction des sources autorisées. NB : inutilisable pour des clients WG
   ## itinérants (IP variables).
   # loadBalancerSourceRanges:
