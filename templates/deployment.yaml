@@ -72,15 +72,10 @@ spec:
           ports:
             - name: https
               containerPort: 443
-            {{- if .Values.service.openvpn.enabled }}
-            - name: openvpn
-              containerPort: {{ .Values.service.port }}
-              protocol: {{ .Values.service.protocol }}
-            {{- end }}
-            {{- if .Values.service.wireguard.enabled }}
-            - name: wireguard
-              containerPort: {{ .Values.service.wireguard.port }}
-              protocol: UDP
+            {{- range fromYamlArray (include "pritunl.vpnPorts" .) }}
+            - name: {{ .name }}
+              containerPort: {{ .port }}
+              protocol: {{ .protocol }}
             {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

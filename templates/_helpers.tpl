@@ -68,6 +68,59 @@ Pritunl mongodb uri template
 {{- end -}}
 
 {{/*
+Liste canonique des ports VPN (nom, numéro, protocole), partagée par le Service
+et le Deployment pour éviter de dupliquer la logique. Un serveur Pritunl = un
+port : les serveurs au-delà du premier se déclarent dans service.extraPorts.
+Le port https n'y figure pas, son conteneur écoute toujours 443.
+*/}}
+{{- define "pritunl.vpnPorts" -}}
+{{- $ports := list -}}
+{{- if .Values.service.openvpn.enabled -}}
+{{- $ports = append $ports (dict "name" "openvpn" "port" (.Values.service.port | int) "protocol" .Values.service.protocol) -}}
+{{- end -}}
+{{- if .Values.service.wireguard.enabled -}}
+{{- $ports = append $ports (dict "name" "wireguard" "port" (.Values.service.wireguard.port | int) "protocol" "UDP") -}}
+{{- end -}}
+{{- range .Values.service.extraPorts -}}
+{{- $ports = append $ports (dict "name" .name "port" (.port | int) "protocol" (default "UDP" .protocol)) -}}
+{{- end -}}
+{{- toYaml $ports -}}
+{{- end -}}
+
+{{/*
+Garde-fous sur les ports du Service. Deux entrées de même numéro se recouvrent :
+la clé de fusion des ports côté Kubernetes est le NUMÉRO seul, donc un doublon
+TCP/UDP fait disparaître silencieusement l'une des deux à l'upgrade. Les noms
+doivent par ailleurs respecter IANA_SVC_NAME (<= 15 caractères, minuscules).
+*/}}
+{{- define "pritunl.validatePorts" -}}
+{{- $all := fromYamlArray (include "pritunl.vpnPorts" .) -}}
+{{- if .Values.service.web.enabled -}}
+{{- $all = append $all (dict "name" "https" "port" (.Values.service.web.port | int)) -}}
+{{- end -}}
+{{- $names := dict -}}
+{{- $numbers := dict -}}
+{{- range $all -}}
+{{- $name := .name -}}
+{{- if not (regexMatch "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$" $name) -}}
+{{- fail (printf "pritunl: nom de port %q invalide (minuscules, chiffres et tirets uniquement)" $name) -}}
+{{- end -}}
+{{- if gt (len $name) 15 -}}
+{{- fail (printf "pritunl: nom de port %q trop long (15 caractères maximum)" $name) -}}
+{{- end -}}
+{{- if hasKey $names $name -}}
+{{- fail (printf "pritunl: nom de port %q déclaré deux fois" $name) -}}
+{{- end -}}
+{{- $_ := set $names $name true -}}
+{{- $number := printf "%d" (.port | int) -}}
+{{- if hasKey $numbers $number -}}
+{{- fail (printf "pritunl: port %s déclaré deux fois ; chaque serveur Pritunl doit avoir un numéro distinct, protocoles confondus" $number) -}}
+{{- end -}}
+{{- $_ := set $numbers $number true -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
 Return true if cert-manager required annotations for TLS signed certificates are set in the Ingress annotations
 Ref: https://cert-manager.io/docs/usage/ingress/#supported-annotations
 */}}

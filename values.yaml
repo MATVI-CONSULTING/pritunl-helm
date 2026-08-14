@@ -57,6 +57,21 @@ service:
     enabled: false
     port: 1195
 
+  ## Ports supplémentaires, un par serveur Pritunl au-delà du premier.
+  ## Un serveur Pritunl écoute sur SON propre port : le créer dans l'UI ne suffit
+  ## pas, le port doit aussi être publié ici pour que le LoadBalancer le route.
+  ## Tous ces ports partagent le même Service, donc la même IP publique : la
+  ## Public Address reste valable pour tous les serveurs.
+  ##   name     : nom du port (IANA_SVC_NAME : minuscules/chiffres/tirets, <= 15 car.)
+  ##   port     : numéro, DISTINCT de tous les autres ports du Service (protocoles
+  ##              confondus, cf. la remarque sur la clé de fusion ci-dessus)
+  ##   protocol : UDP (défaut, WireGuard) ou TCP (OpenVPN)
+  ## Exemple :
+  ##   extraPorts:
+  ##     - { name: wg-staging, port: 1197 }
+  ##     - { name: ovpn-partners, port: 1198, protocol: TCP }
+  extraPorts: []
+
   ## Web/HTTPS : port TCP exposé sur le LoadBalancer. Sert la console d'admin et,
   ## surtout, INDISPENSABLE à WireGuard : l'auth WG de Pritunl passe par une
   ## requête HTTPS sur le port 443 (codé en dur en version gratuite) AVANT

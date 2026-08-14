@@ -54,6 +54,46 @@ WireGuard n'est **pas** activé par défaut (le défaut est OpenVPN). Pour l'act
   client Pritunl officiel et choisir le mode **WG**. (Détails et pièges macOS dans
   la doc `pritunl-docker-image/docs/wireguard.md`.)
 
+## Plusieurs serveurs Pritunl
+
+Chaque serveur Pritunl écoute sur **son propre port**. Le créer dans l'UI ne
+suffit pas : tant que le port n'est pas publié sur le Service, le LoadBalancer ne
+route rien et le client time-out. Déclarez un `service.extraPorts` par serveur
+au-delà du premier :
+
+```yaml
+service:
+  openvpn:
+    enabled: false
+  wireguard:
+    enabled: true
+    port: 1195            # serveur « prod »
+  extraPorts:
+    - { name: wg-staging, port: 1197 }                    # serveur « staging »
+    - { name: ovpn-partners, port: 1198, protocol: TCP }  # serveur OpenVPN
+```
+
+- `name` : contrainte IANA_SVC_NAME (minuscules, chiffres, tirets, ≤ 15 caractères).
+- `port` : numéro **distinct de tous les autres**, protocoles confondus (443 inclus).
+- `protocol` : `UDP` par défaut (WireGuard), `TCP` pour un serveur OpenVPN.
+
+Le chart valide ces trois règles au rendu et échoue avec un message explicite
+plutôt que de produire un Service silencieusement amputé d'un port.
+
+Tous les ports partagent le **même** Service, donc la même IP publique : la
+Public Address reste valable pour l'ensemble des serveurs et les profils clients
+déjà distribués ne sont pas invalidés.
+
+> **Piège Pritunl.** Un serveur a deux ports : son port serveur (`Port` +
+> `Protocol`, OpenVPN) *et* son `WireGuard Port`. Pritunl impose l'unicité des
+> deux **entre tous les serveurs**, y compris pour le port OpenVPN que vous
+> n'exposez pas. Prévoyez donc un couple de numéros libres par serveur, et ne
+> publiez ici que le port réellement utilisé par les clients.
+
+> **Réplicas.** Restez à `replicas: 1`. L'état WireGuard (handshakes, peers) est
+> local au pod : avec plusieurs réplicas, le LoadBalancer répartit les flux UDP
+> et les sessions cassent de façon aléatoire.
+
 ## MongoDB & secrets
 
 Trois stratégies, sélectionnées par les valeurs :
@@ -104,6 +144,7 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
 | `service.type` | `LoadBalancer` | Type de Service |
 | `service.openvpn.enabled` | `true` | Expose OpenVPN (TCP 1194) |
 | `service.wireguard.enabled` / `.port` | `false` / `1195` | Expose WireGuard (UDP) — opt-in |
+| `service.extraPorts` | `[]` | Ports des serveurs Pritunl additionnels (`name`/`port`/`protocol`) |
 | `service.web.enabled` / `.port` | `true` / `443` | Expose HTTPS (auth WG) — requis |
 | `service.annotations` | `{}` | Annotations LB (ex. octavia) |
 | `mongodb.enabled` | `true` | MongoDB embarqué (subchart Bitnami) |

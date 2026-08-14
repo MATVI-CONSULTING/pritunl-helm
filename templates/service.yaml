@@ -20,21 +20,16 @@ spec:
     {{- toYaml . | nindent 4 }}
   {{- end }}
   {{- end }}
+  {{- include "pritunl.validatePorts" . }}
   ports:
-    {{- if .Values.service.openvpn.enabled }}
-    - name: openvpn
-      port: {{ .Values.service.port }}
-      targetPort: openvpn
-      {{- with .Values.service.nodePort }}
-      nodePort: {{ . }}
+    {{- range fromYamlArray (include "pritunl.vpnPorts" .) }}
+    - name: {{ .name }}
+      port: {{ .port }}
+      targetPort: {{ .name }}
+      {{- if and (eq .name "openvpn") $.Values.service.nodePort }}
+      nodePort: {{ $.Values.service.nodePort }}
       {{- end }}
-      protocol: {{ .Values.service.protocol }}
-    {{- end }}
-    {{- if .Values.service.wireguard.enabled }}
-    - name: wireguard
-      port: {{ .Values.service.wireguard.port }}
-      targetPort: wireguard
-      protocol: UDP
+      protocol: {{ .protocol }}
     {{- end }}
     {{- if .Values.service.web.enabled }}
     - name: https
