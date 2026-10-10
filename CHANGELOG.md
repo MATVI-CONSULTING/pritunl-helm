@@ -3,6 +3,19 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ;
 versions du chart en [SemVer](https://semver.org/lang/fr/).
 
+## [2.0.1] - 2026-10-10
+
+### Modifié
+
+- Image MongoDB référencée `mongo` (Docker Hub) au lieu de
+  `docker.io/library/mongo` : même image, mais Dependabot peut désormais la
+  suivre (il traitait l'hôte explicite comme un registre privé).
+
+### Documentation
+
+- README : installation depuis GHCR, procédure de publication ; ajout de ce
+  CHANGELOG.
+
 ## [2.0.0] - 2026-10-10
 
 ### Modifié (incompatible)
@@ -42,6 +55,7 @@ versions du chart en [SemVer](https://semver.org/lang/fr/).
 - Première version : chart Pritunl mutualisé multi-client (OpenVPN, WireGuard
   opt-in, MongoDB embarqué ou externe).
 
+[2.0.1]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/releases/tag/v1.0.0
