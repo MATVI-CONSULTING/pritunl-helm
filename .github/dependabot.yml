@@ -14,7 +14,8 @@ updates:
     schedule:
       interval: weekly
     ignore:
-      # Une version majeure de MongoDB exige de monter la featureCompatibilityVersion
-      # avant/après l'upgrade (voir README) : on la fait à la main.
+      # Changer de version majeure OU mineure de MongoDB (8.0 -> 8.2...) exige la
+      # procédure featureCompatibilityVersion (voir README) : on la fait à la
+      # main. Dependabot ne propose que les correctifs 8.0.x.
       - dependency-name: "mongo"
-        update-types: ["version-update:semver-major"]
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
