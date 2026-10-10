@@ -21,7 +21,7 @@ dependencies:
     repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
     tags:
       - bitnami-common
-    version: 2.20.x
+    version: 2.41.x
   - name: mongodb
     version: "~20.0.x"
     repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
