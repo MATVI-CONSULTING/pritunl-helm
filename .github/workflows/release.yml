@@ -1,7 +1,9 @@
 name: Release Chart
 
-# Publie le chart empaqueté en tant qu'artefact OCI sur GHCR lors d'un tag `v*`.
-# Ex. : git tag v1.0.0 && git push origin v1.0.0
+# Sur un tag `v*` : publie le chart en artefact OCI sur GHCR et crée la GitHub
+# Release correspondante (notes tirées du CHANGELOG, .tgz en pièce jointe).
+# Le tag doit correspondre à `version` dans Chart.yaml.
+# Ex. : git tag -a v2.1.0 -m v2.1.0 && git push origin v2.1.0
 on:
   push:
     tags:
@@ -15,7 +17,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - uses: actions/checkout@v7
@@ -24,6 +26,15 @@ jobs:
         uses: azure/setup-helm@v5
         with:
           version: v3.16.2
+
+      - name: Vérifier que le tag correspond à Chart.yaml
+        run: |
+          set -euo pipefail
+          CHART_VERSION=$(sed -n 's/^version: *//p' Chart.yaml)
+          if [ "v${CHART_VERSION}" != "${GITHUB_REF_NAME}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} ≠ version ${CHART_VERSION} de Chart.yaml" >&2
+            exit 1
+          fi
 
       - name: Login GHCR
         run: |
@@ -38,3 +49,15 @@ jobs:
           set -euo pipefail
           CHART_TGZ=$(ls dist/pritunl-*.tgz)
           helm push "$CHART_TGZ" "${{ env.OCI_REPO }}"
+
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Section « ## [X.Y.Z] » du CHANGELOG, jusqu'à la suivante.
+          awk -v v="${GITHUB_REF_NAME#v}" \
+            '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' \
+            CHANGELOG.md > notes.md
+          gh release create "${GITHUB_REF_NAME}" dist/pritunl-*.tgz \
+            --title "${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag

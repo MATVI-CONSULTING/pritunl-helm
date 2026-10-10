@@ -205,7 +205,9 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
    ressources changent de façon incompatible) et compléter le
    [CHANGELOG](CHANGELOG.md).
 2. Après merge sur `main`, taguer le commit : `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
-3. Le workflow *Release Chart* publie `oci://ghcr.io/matvi-consulting/charts/pritunl:X.Y.Z`.
+3. Le workflow *Release Chart* vérifie que le tag correspond à `Chart.yaml`,
+   publie `oci://ghcr.io/matvi-consulting/charts/pritunl:X.Y.Z` et crée la
+   GitHub Release (notes = section `X.Y.Z` du CHANGELOG, `.tgz` joint).
 
 ## Licence
 
