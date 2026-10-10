@@ -1,6 +1,6 @@
 # Valeurs par défaut du chart Pritunl.
 # Ce chart est PUBLIC : aucun secret / mot de passe en clair ne doit y figurer.
-# Les identifiants MongoDB sont soit auto-générés par le subchart Bitnami (défaut),
+# Les identifiants MongoDB sont soit auto-générés par le MongoDB embarqué (défaut),
 # soit fournis via un Secret Kubernetes existant (voir la section « MongoDB »).
 
 replicas: 1
@@ -123,10 +123,10 @@ affinity: {}
 # ---------------------------------------------------------------------------
 # MongoDB — trois stratégies possibles (voir README) :
 #
-#  (a) Auto-contenu (DÉFAUT) : mongodb.enabled=true. Le subchart Bitnami déploie
-#      un MongoDB et AUTO-GÉNÈRE le mot de passe. Le chart construit l'URI via
-#      `mongodbUriTemplate` et injecte le mot de passe depuis le Secret du
-#      subchart. Rien à fournir, aucun secret dans les values.
+#  (a) Auto-contenu (DÉFAUT) : mongodb.enabled=true. Le chart déploie un
+#      MongoDB (image officielle) et AUTO-GÉNÈRE le mot de passe. Il construit
+#      l'URI via `mongodbUriTemplate` et injecte le mot de passe depuis le Secret
+#      <release>-mongodb. Rien à fournir, aucun secret dans les values.
 #
 #  (b) existingSecret : mongoDBUriSecretName pointe vers un Secret k8s préexistant
 #      (SealedSecrets / ExternalSecrets) contenant l'URI Mongo complète. Idéal
@@ -139,24 +139,30 @@ affinity: {}
 
 mongodb:
   enabled: true
-  architecture: standalone
-  # Les images docker.io/bitnami/* ont été retirées du Docker Hub par Broadcom
-  # (2025). On pointe le dépôt legacy, gelé mais toujours pullable.
+  # Image Docker officielle MongoDB (docker.io/library/mongo).
   image:
-    registry: docker.io
-    repository: bitnamilegacy/mongodb
-    tag: 7.0.11-debian-12-r0
+    repository: docker.io/library/mongo
+    tag: "8.0.32"
+    pullPolicy: IfNotPresent
   auth:
-    enabled: true
     username: pritunl
     database: pritunl
-    # Pas de `password` / `rootPassword` ici : auto-générés par le subchart.
+    # Pas de mot de passe ici : auto-générés dans le Secret <release>-mongodb
+    # (clés mongodb-root-password / mongodb-passwords, utilisateur root : root).
   extraFlags:
     - --wiredTigerCacheSizeGB=0.25
   persistence:
     enabled: true
+    # Vide = StorageClass par défaut du cluster.
+    storageClass: ""
     size: 10Gi
-  strategyType: Recreate
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 750m
+      memory: 768Mi
 
 ## (b) Secret k8s existant contenant l'URI Mongo (stratégie existingSecret).
 ## Laisser vide pour ne pas l'utiliser.
@@ -172,9 +178,9 @@ mongoDBUriSecretKey: "PRITUNL_MONGODB_URI"
 ## de mongodb.auth.username / database, avec le mot de passe résolu au runtime.
 mongodbUriTemplate:
 
-## Mode auto-contenu : Secret et clé d'où lire le mot de passe MongoDB généré par
-## le subchart Bitnami (injecté en variable PRITUNL_MONGODB_PASSWORD). Les défauts
-## conviennent au subchart embarqué ; à surcharger si vous changez son nommage.
+## Mode auto-contenu : Secret et clé d'où lire le mot de passe MongoDB applicatif
+## (injecté en variable PRITUNL_MONGODB_PASSWORD). Les défauts conviennent au
+## MongoDB embarqué.
 # mongoPasswordSecretName: ""     # défaut : <release>-mongodb
 # mongoPasswordSecretKey: ""      # défaut : mongodb-passwords
 

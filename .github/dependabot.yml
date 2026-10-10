@@ -13,7 +13,3 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    ignore:
-      # Image figee (bitnamilegacy) pinnee dans values.yaml : Dependabot ne peut
-      # pas interroger ce depot Docker Hub et fait echouer tout le job helm.
-      - dependency-name: "docker.io/bitnamilegacy/mongodb"

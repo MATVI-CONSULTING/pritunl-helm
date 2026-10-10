@@ -1,0 +1,197 @@
+{{- if .Values.mongodb.enabled -}}
+{{- if .Values.mongodb.image.registry -}}
+{{- fail "pritunl: mongodb.image.registry est une clé de l'ancien subchart Bitnami ; le MongoDB embarqué utilise l'image officielle (mongodb.image.repository / mongodb.image.tag). Retirez vos surcharges mongodb.image." -}}
+{{- end -}}
+{{- $fullName := include "pritunl.mongodb.fullname" . -}}
+{{- $secret := lookup "v1" "Secret" .Release.Namespace $fullName -}}
+{{- $dataDir := "/data/mongodb" -}}
+{{- /*
+Les noms, labels de sélection, clés de Secret et l'arborescence du volume
+reprennent ceux de l'ancien subchart Bitnami (standalone) : un `helm upgrade`
+depuis le chart 1.x met à jour ces ressources en place et réutilise le PVC et
+les mots de passe existants. Ne pas les renommer.
+*/}}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "pritunl.mongodb.labels" . | nindent 4 }}
+type: Opaque
+data:
+  {{- if $secret }}
+  # Mots de passe conservés d'une révision précédente (pas de rotation à l'upgrade).
+  mongodb-root-password: {{ index $secret.data "mongodb-root-password" }}
+  mongodb-passwords: {{ index $secret.data "mongodb-passwords" }}
+  {{- else }}
+  mongodb-root-password: {{ randAlphaNum 24 | b64enc }}
+  mongodb-passwords: {{ randAlphaNum 24 | b64enc }}
+  {{- end }}
+---
+# Crée l'utilisateur applicatif au premier démarrage sur un volume vide
+# (ignoré par l'entrypoint de l'image officielle si des données existent).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ $fullName }}-initdb
+  labels:
+    {{- include "pritunl.mongodb.labels" . | nindent 4 }}
+data:
+  create-app-user.js: |
+    db.getSiblingDB(process.env.MONGODB_APP_DATABASE).createUser({
+      user: process.env.MONGODB_APP_USERNAME,
+      pwd: process.env.MONGODB_APP_PASSWORD,
+      roles: [{ role: "readWrite", db: process.env.MONGODB_APP_DATABASE }],
+    });
+{{- if .Values.mongodb.persistence.enabled }}
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "pritunl.mongodb.labels" . | nindent 4 }}
+  annotations:
+    # Un `helm uninstall` (ou la désactivation de mongodb) ne détruit pas les données.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - ReadWriteOnce
+  {{- with .Values.mongodb.persistence.storageClass }}
+  storageClassName: {{ . | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.mongodb.persistence.size | quote }}
+{{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "pritunl.mongodb.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - name: mongodb
+      port: 27017
+      targetPort: mongodb
+  selector:
+    {{- include "pritunl.mongodb.selectorLabels" . | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $fullName }}
+  labels:
+    {{- include "pritunl.mongodb.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  strategy:
+    # Volume RWO : l'ancien pod doit libérer le PVC avant le démarrage du nouveau.
+    # `rollingUpdate: null` efface les paramètres hérités de la stratégie
+    # RollingUpdate du chart 1.x, sans quoi l'upgrade est refusé par l'API.
+    type: Recreate
+    rollingUpdate: null
+  selector:
+    matchLabels:
+      {{- include "pritunl.mongodb.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "pritunl.mongodb.labels" . | nindent 8 }}
+    spec:
+      # Explicite : sinon le champ déprécié `serviceAccount` hérité du chart 1.x
+      # garde une référence au ServiceAccount Bitnami supprimé à l'upgrade.
+      serviceAccountName: default
+      automountServiceAccountToken: false
+      securityContext:
+        # UID/GID de l'image Bitnami : les fichiers d'un volume existant lui
+        # appartiennent déjà, aucun chown n'est nécessaire.
+        runAsUser: 1001
+        runAsGroup: 1001
+        runAsNonRoot: true
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: mongodb
+          image: "{{ .Values.mongodb.image.repository }}:{{ .Values.mongodb.image.tag }}"
+          imagePullPolicy: {{ .Values.mongodb.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          # Les données vivent dans <volume>/data/db (arborescence Bitnami),
+          # sous-dossier à créer sur un volume neuf avant de lancer l'entrypoint.
+          command:
+            - sh
+            - -c
+            - mkdir -p {{ $dataDir }}/data/db && exec docker-entrypoint.sh "$@"
+            - --
+          args:
+            - mongod
+            - --dbpath={{ $dataDir }}/data/db
+            - --bind_ip_all
+            {{- range .Values.mongodb.extraFlags }}
+            - {{ . | quote }}
+            {{- end }}
+          env:
+            - name: HOME
+              value: /tmp
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: root
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}
+                  key: mongodb-root-password
+            - name: MONGODB_APP_USERNAME
+              value: {{ .Values.mongodb.auth.username | quote }}
+            - name: MONGODB_APP_DATABASE
+              value: {{ .Values.mongodb.auth.database | quote }}
+            - name: MONGODB_APP_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $fullName }}
+                  key: mongodb-passwords
+          ports:
+            - name: mongodb
+              containerPort: 27017
+          readinessProbe:
+            tcpSocket:
+              port: mongodb
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: mongodb
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.mongodb.resources | nindent 12 }}
+          volumeMounts:
+            - name: data
+              mountPath: {{ $dataDir }}
+            - name: initdb
+              mountPath: /docker-entrypoint-initdb.d
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: data
+          {{- if .Values.mongodb.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ $fullName }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: initdb
+          configMap:
+            name: {{ $fullName }}-initdb
+        - name: tmp
+          emptyDir: {}
+{{- end }}

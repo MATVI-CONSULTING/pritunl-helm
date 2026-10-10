@@ -62,9 +62,38 @@ Pritunl mongodb uri template
 {{- if .Values.mongodbUriTemplate -}}
 {{ .Values.mongodbUriTemplate }}
 {{- else if and .Values.mongodb.auth.username .Values.mongodb.auth.database -}}
-{{- $fullName := include "pritunl.fullname" . -}}
-{{- printf "mongodb://%s:$PRITUNL_MONGODB_PASSWORD@%s-mongodb/%s" .Values.mongodb.auth.username $fullName .Values.mongodb.auth.database -}}
+{{- printf "mongodb://%s:$PRITUNL_MONGODB_PASSWORD@%s/%s" .Values.mongodb.auth.username (include "pritunl.mongodb.fullname" .) .Values.mongodb.auth.database -}}
 {{- end -}}
+{{- end -}}
+
+{{/*
+Nom des ressources du MongoDB embarqué. Reprend la règle de l'ancien subchart
+Bitnami (<release>-mongodb, ou le nom de release s'il contient déjà "mongodb")
+pour que l'upgrade depuis le chart 1.x retrouve PVC, Secret et Service.
+*/}}
+{{- define "pritunl.mongodb.fullname" -}}
+{{- if contains "mongodb" .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+{{- printf "%s-mongodb" .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Labels de sélection du MongoDB embarqué (identiques au subchart Bitnami : le
+sélecteur d'un Deployment est immuable).
+*/}}
+{{- define "pritunl.mongodb.selectorLabels" -}}
+app.kubernetes.io/name: mongodb
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/component: mongodb
+{{- end -}}
+
+{{- define "pritunl.mongodb.labels" -}}
+{{ include "pritunl.mongodb.selectorLabels" . }}
+app.kubernetes.io/version: {{ .Values.mongodb.image.tag | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ include "pritunl.chart" . }}
 {{- end -}}
 
 {{/*

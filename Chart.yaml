@@ -3,7 +3,7 @@ name: pritunl
 description: Chart Helm mutualisé pour déployer Pritunl (VPN OpenVPN/WireGuard) auto-hébergé, avec MongoDB embarqué ou externe.
 type: application
 appVersion: "1.29"
-version: 1.1.0
+version: 2.0.0
 home: https://pritunl.com/
 sources:
   - https://github.com/MATVI-CONSULTING/pritunl-helm
@@ -22,7 +22,3 @@ dependencies:
     tags:
       - bitnami-common
     version: 2.41.x
-  - name: mongodb
-    version: "~20.0.x"
-    repository: https://raw.githubusercontent.com/bitnami/charts/archive-full-index/bitnami
-    condition: mongodb.enabled
