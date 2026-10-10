@@ -104,13 +104,47 @@ Trois stratégies, sélectionnées par les valeurs :
 | **(b) existingSecret** | `mongoDBUriSecretName: <secret>` (+ `mongodb.enabled: false` si Mongo externe) | GitOps (SealedSecrets/ExternalSecrets), Mongo managé |
 | **(c) URI inline** | `mongoURI: mongodb://...` | Outils qui injectent la valeur au déploiement (Pulumi/Terraform) — **jamais committé** |
 
-- **(a)** Le subchart Bitnami auto-génère le mot de passe (Secret `<release>-mongodb`,
-  clé `mongodb-passwords`). Le chart construit l'URI et injecte le mot de passe en
-  variable `PRITUNL_MONGODB_PASSWORD`. Aucun secret à fournir.
+- **(a)** Le chart déploie MongoDB à partir de l'image Docker officielle
+  (`docker.io/library/mongo`, 8.0 par défaut) et auto-génère les mots de passe
+  (Secret `<release>-mongodb`, clés `mongodb-passwords` pour l'utilisateur
+  applicatif et `mongodb-root-password` pour `root`). Le chart construit l'URI
+  et injecte le mot de passe en variable `PRITUNL_MONGODB_PASSWORD`. Aucun
+  secret à fournir. Le PVC est annoté `helm.sh/resource-policy: keep` : il
+  survit à un `helm uninstall`.
 - **(b)** Le Secret doit contenir l'URI complète sous la clé `mongoDBUriSecretKey`
   (défaut `PRITUNL_MONGODB_URI`).
 - **(c)** Le chart crée un Secret `<release>-mongo-secrets`. Ne mettez jamais de
   vraie valeur `mongoURI` dans un fichier committé.
+
+### Mise à jour depuis le chart 1.x (MongoDB Bitnami)
+
+Le chart 2.0 remplace le subchart Bitnami par l'image officielle `mongo`. Le
+`helm upgrade` reprend **en place** le PVC, le Secret (mêmes mots de passe) et
+le Service `<release>-mongodb` : pas de dump/restore. MongoDB passe de 7.0 à 8.0
+au démarrage ; la *featureCompatibilityVersion* reste à `7.0`, ce qui permet de
+revenir en arrière.
+
+1. Retirez de vos values les clés propres à Bitnami (`mongodb.image.registry`,
+   `mongodb.architecture`, `mongodb.strategyType`, `mongodb.auth.enabled`…). Le
+   chart refuse de s'installer si `mongodb.image.registry` est encore présent.
+2. `helm upgrade` (MongoDB est indisponible le temps du redémarrage).
+3. Une fois validé, montez la FCV (étape nécessaire avant une future 9.0, mais
+   qui rend le retour à 7.0 impossible) :
+
+   ```bash
+   kubectl -n vpn exec deploy/pritunl-mongodb -- sh -c \
+     'mongosh -u root -p "$MONGO_INITDB_ROOT_PASSWORD" --quiet \
+       --eval "db.adminCommand({setFeatureCompatibilityVersion: \"8.0\", confirm: true})"'
+   ```
+
+**Retour au chart 1.x** (tant que la FCV est à `7.0`) : arrêtez d'abord MongoDB,
+car l'ancien chart démarre le nouveau pod avant d'arrêter l'ancien et bute sur
+le verrou des données :
+
+```bash
+kubectl -n vpn scale deploy/pritunl-mongodb --replicas=0
+helm rollback pritunl <révision> -n vpn
+```
 
 ## `conf.host_id` (à définir par instance)
 
@@ -147,7 +181,10 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
 | `service.extraPorts` | `[]` | Ports des serveurs Pritunl additionnels (`name`/`port`/`protocol`) |
 | `service.web.enabled` / `.port` | `true` / `443` | Expose HTTPS (auth WG) — requis |
 | `service.annotations` | `{}` | Annotations LB (ex. octavia) |
-| `mongodb.enabled` | `true` | MongoDB embarqué (subchart Bitnami) |
+| `mongodb.enabled` | `true` | MongoDB embarqué (image officielle `mongo`) |
+| `mongodb.image.repository` / `.tag` | `docker.io/library/mongo` / `8.0.32` | Image MongoDB |
+| `mongodb.persistence.size` / `.storageClass` | `10Gi` / `""` | Volume des données |
+| `mongodb.resources` | 100m/256Mi → 750m/768Mi | Ressources du conteneur MongoDB |
 | `mongoDBUriSecretName` / `mongoDBUriSecretKey` | `""` / `PRITUNL_MONGODB_URI` | Secret externe (stratégie b) |
 | `conf.host_id` | `""` | Identifiant d'instance (à définir) |
 
