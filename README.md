@@ -24,14 +24,13 @@ Le chart est publié sur GHCR (OCI). Partez d'un des fichiers d'exemple et
 
 ```bash
 helm install pritunl oci://ghcr.io/matvi-consulting/charts/pritunl \
-  --version 2.0.1 -n vpn --create-namespace \
+  --version 2.1.0 -n vpn --create-namespace \
   -f values-wg-only-ovh.yaml
 ```
 
 Depuis les sources :
 
 ```bash
-helm dependency build
 helm install pritunl . -n vpn --create-namespace \
   -f examples/values-wg-only-ovh.yaml
 ```
@@ -138,7 +137,7 @@ revenir en arrière.
 1. Retirez de vos values les clés propres à Bitnami (`mongodb.image.registry`,
    `mongodb.architecture`, `mongodb.strategyType`, `mongodb.auth.enabled`…). Le
    chart refuse de s'installer si `mongodb.image.registry` est encore présent.
-2. `helm upgrade pritunl oci://ghcr.io/matvi-consulting/charts/pritunl --version 2.0.1 -n vpn -f <vos-values>.yaml`
+2. `helm upgrade pritunl oci://ghcr.io/matvi-consulting/charts/pritunl --version 2.1.0 -n vpn -f <vos-values>.yaml`
    (MongoDB est indisponible le temps du redémarrage).
 3. Une fois validé, montez la FCV (étape nécessaire avant une future 9.0, mais
    qui rend le retour à 7.0 impossible) :

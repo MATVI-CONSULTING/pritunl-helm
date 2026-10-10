@@ -3,6 +3,22 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ;
 versions du chart en [SemVer](https://semver.org/lang/fr/).
 
+## [2.1.0] - 2026-10-10
+
+### Supprimé
+
+- Dépendance à la bibliothèque Bitnami `common` (dépôt d'archive gelé) : le
+  chart n'a plus aucune dépendance, plus besoin de `helm dependency build`.
+
+### Corrigé
+
+- Ingress : `pathType` manquant (refusé par l'API `networking.k8s.io/v1`) et
+  backend pointant vers un port 80 inexistant sur le Service `-web` (443).
+
+### Ajouté
+
+- Valeurs par défaut `ingress.className`, `hostname`, `path`, `annotations`.
+
 ## [2.0.1] - 2026-10-10
 
 ### Modifié
@@ -55,6 +71,7 @@ versions du chart en [SemVer](https://semver.org/lang/fr/).
 - Première version : chart Pritunl mutualisé multi-client (OpenVPN, WireGuard
   opt-in, MongoDB embarqué ou externe).
 
+[2.1.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v2.0.1...v2.1.0
 [2.0.1]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v2.0.0...v2.0.1
 [2.0.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v1.1.0...v2.0.0
 [1.1.0]: https://github.com/MATVI-CONSULTING/pritunl-helm/compare/v1.0.0...v1.1.0
