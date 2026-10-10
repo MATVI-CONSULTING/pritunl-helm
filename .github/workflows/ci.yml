@@ -23,13 +23,30 @@ jobs:
       - name: Helm template (toutes les variantes)
         run: |
           set -euo pipefail
+          mkdir -p rendered
           for f in examples/*.yaml; do
-            echo "::group::helm template -f $f"
-            helm template pritunl . -f "$f" > /dev/null
-            echo "::endgroup::"
+            helm template pritunl . -f "$f" > "rendered/$(basename "$f")"
           done
-          # Rendu par défaut également
-          helm template pritunl . > /dev/null
+          # Rendu par défaut, et Ingress activé (désactivé partout ailleurs).
+          helm template pritunl . > rendered/default.yaml
+          helm template pritunl . --set ingress.enabled=true \
+            --set ingress.hostname=vpn.example.com > rendered/ingress.yaml
+
+      - name: Install kubeconform
+        env:
+          KUBECONFORM_VERSION: v0.8.0
+          KUBECONFORM_SHA256: 9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883
+        run: |
+          set -euo pipefail
+          curl -sSLo kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          echo "${KUBECONFORM_SHA256}  kubeconform.tar.gz" | sha256sum -c -
+          tar xzf kubeconform.tar.gz -C "$RUNNER_TEMP" kubeconform
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Valider les manifestes (kubeconform)
+        # Version minimale supportée par le chart (voir README, Prérequis).
+        run: kubeconform -strict -summary -kubernetes-version 1.26.0 rendered/*.yaml
 
       - name: Vérifier l'absence de secret en clair
         run: |
