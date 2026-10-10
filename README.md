@@ -14,16 +14,27 @@ opt-in** (voir [WireGuard : points clés](#wireguard--points-clés) et
 - Le pod tourne en `privileged` + `NET_ADMIN` (création de l'interface tun/WG) —
   vérifiez vos Pod Security Standards / PSA.
 - Helm 3.
+- MongoDB embarqué (défaut) : nœuds x86-64 avec AVX (exigence de MongoDB ≥ 5.0)
+  et une StorageClass pour le volume de données.
 
 ## Installation
+
+Le chart est publié sur GHCR (OCI). Partez d'un des fichiers d'exemple et
+éditez-le (au minimum `conf.host_id`, voir plus bas) :
+
+```bash
+helm install pritunl oci://ghcr.io/matvi-consulting/charts/pritunl \
+  --version 2.0.0 -n vpn --create-namespace \
+  -f values-wg-only-ovh.yaml
+```
+
+Depuis les sources :
 
 ```bash
 helm dependency build
 helm install pritunl . -n vpn --create-namespace \
   -f examples/values-wg-only-ovh.yaml
 ```
-
-Éditez d'abord l'exemple choisi (au minimum `conf.host_id`, voir plus bas).
 
 ## Variantes
 
@@ -127,7 +138,8 @@ revenir en arrière.
 1. Retirez de vos values les clés propres à Bitnami (`mongodb.image.registry`,
    `mongodb.architecture`, `mongodb.strategyType`, `mongodb.auth.enabled`…). Le
    chart refuse de s'installer si `mongodb.image.registry` est encore présent.
-2. `helm upgrade` (MongoDB est indisponible le temps du redémarrage).
+2. `helm upgrade pritunl oci://ghcr.io/matvi-consulting/charts/pritunl --version 2.0.0 -n vpn -f <vos-values>.yaml`
+   (MongoDB est indisponible le temps du redémarrage).
 3. Une fois validé, montez la FCV (étape nécessaire avant une future 9.0, mais
    qui rend le retour à 7.0 impossible) :
 
@@ -187,6 +199,14 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
 | `mongodb.resources` | 100m/256Mi → 750m/768Mi | Ressources du conteneur MongoDB |
 | `mongoDBUriSecretName` / `mongoDBUriSecretKey` | `""` / `PRITUNL_MONGODB_URI` | Secret externe (stratégie b) |
 | `conf.host_id` | `""` | Identifiant d'instance (à définir) |
+
+## Publier une version
+
+1. Monter `version` dans `Chart.yaml` (SemVer : majeure si les values ou les
+   ressources changent de façon incompatible) et compléter le
+   [CHANGELOG](CHANGELOG.md).
+2. Après merge sur `main`, taguer le commit : `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
+3. Le workflow *Release Chart* publie `oci://ghcr.io/matvi-consulting/charts/pritunl:X.Y.Z`.
 
 ## Licence
 

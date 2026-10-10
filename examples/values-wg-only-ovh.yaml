@@ -4,8 +4,8 @@
 # L'annotation octavia est requise pour un LB multi-protocole sur OVH MKS.
 #
 # Installation :
-#   helm dependency build
-#   helm install pritunl . -n vpn --create-namespace -f examples/values-wg-only-ovh.yaml
+#   helm install pritunl oci://ghcr.io/matvi-consulting/charts/pritunl --version 2.0.0 \
+#     -n vpn --create-namespace -f examples/values-wg-only-ovh.yaml
 
 service:
   type: LoadBalancer
