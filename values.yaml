@@ -103,8 +103,15 @@ readinessProbe:
   periodSeconds: 15
   successThreshold: 1
 
+## Ingress vers l'UI web. Le backend est en HTTPS (Pritunl écoute en 443) :
+## ajoutez l'annotation propre à votre contrôleur, ex. ingress-nginx :
+##   nginx.ingress.kubernetes.io/backend-protocol: HTTPS
 ingress:
   enabled: false
+  className: ""
+  hostname: ""
+  path: /
+  annotations: {}
 
 resources:
   requests:
