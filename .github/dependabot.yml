@@ -13,3 +13,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Une version majeure de MongoDB exige de monter la featureCompatibilityVersion
+      # avant/après l'upgrade (voir README) : on la fait à la main.
+      - dependency-name: "mongo"
+        update-types: ["version-update:semver-major"]

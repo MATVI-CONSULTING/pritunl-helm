@@ -139,9 +139,10 @@ affinity: {}
 
 mongodb:
   enabled: true
-  # Image Docker officielle MongoDB (docker.io/library/mongo).
+  # Image Docker officielle MongoDB (Docker Hub). Sans préfixe `docker.io/` :
+  # Dependabot traite un hôte explicite comme un registre privé et échoue.
   image:
-    repository: docker.io/library/mongo
+    repository: mongo
     tag: "8.0.32"
     pullPolicy: IfNotPresent
   auth:
