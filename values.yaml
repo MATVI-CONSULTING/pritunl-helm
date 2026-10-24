@@ -150,7 +150,7 @@ mongodb:
   # Dependabot traite un hôte explicite comme un registre privé et échoue.
   image:
     repository: mongo
-    tag: "8.0.32"
+    tag: "8.0.34"
     pullPolicy: IfNotPresent
   auth:
     username: pritunl
