@@ -3,7 +3,7 @@ name: pritunl
 description: Chart Helm mutualisé pour déployer Pritunl (VPN OpenVPN/WireGuard) auto-hébergé, avec MongoDB embarqué ou externe.
 type: application
 appVersion: "1.29"
-version: 2.1.0
+version: 2.2.0
 home: https://pritunl.com/
 sources:
   - https://github.com/MATVI-CONSULTING/pritunl-helm

@@ -5,6 +5,16 @@
 
 replicas: 1
 
+## Stratégie de mise à jour du Deployment Pritunl. Vide : défaut Kubernetes
+## (RollingUpdate). Sur un cluster sans marge (un seul nœud plein), le nouveau
+## pod d'un RollingUpdate reste Pending tant que l'ancien tourne : préférer
+##   strategy:
+##     type: Recreate
+##     rollingUpdate: null   # efface les paramètres hérités de RollingUpdate,
+##                           # sans quoi l'API refuse le passage à Recreate
+## Coupure brève du VPN à chaque mise à jour, assumée avec un seul réplica.
+strategy: {}
+
 image:
   # Image Pritunl custom Matvi : embarque iproute2 / iptables / wireguard-tools,
   # indispensables à la création de l'interface tun/WireGuard.
