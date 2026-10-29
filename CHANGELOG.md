@@ -3,6 +3,15 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ;
 versions du chart en [SemVer](https://semver.org/lang/fr/).
 
+## [2.2.0] - 2026-10-29
+
+### Ajouté
+
+- Valeur `strategy` pour le Deployment Pritunl (vide par défaut : comportement
+  inchangé). `type: Recreate` + `rollingUpdate: null` évite qu'une mise à jour
+  reste bloquée sur un cluster sans marge CPU (nouveau pod Pending tant que
+  l'ancien tourne).
+
 ## [2.1.0] - 2026-10-10
 
 ### Supprimé
