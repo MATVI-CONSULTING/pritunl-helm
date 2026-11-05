@@ -3,6 +3,25 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ;
 versions du chart en [SemVer](https://semver.org/lang/fr/).
 
+## [2.3.0] - 2026-11-05
+
+### Modifié
+
+- Image Pritunl `1.2.0` (tag semver au lieu d'un SHA) : base Ubuntu 26.04,
+  entrypoint durci (URI MongoDB entre guillemets). Le tag semver permet à
+  Dependabot de suivre l'image.
+
+### Ajouté
+
+- `livenessProbe` sur le conteneur Pritunl (`pgrep -f "pritunl start"`,
+  équivalent du `HEALTHCHECK` de l'image, ignoré par Kubernetes).
+
+### Corrigé
+
+- `readinessProbe` était déclarée dans les values mais jamais appliquée : elle
+  est désormais rendue (TCP sur le port `https`, 443). Les deux sondes se
+  désactivent avec `null`.
+
 ## [2.2.0] - 2026-10-29
 
 ### Ajouté

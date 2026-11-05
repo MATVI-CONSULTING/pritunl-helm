@@ -185,7 +185,9 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
 
 | Clé | Défaut | Description |
 | --- | ------ | ----------- |
-| `image.repository` / `image.tag` | image Matvi épinglée au SHA | Image Pritunl |
+| `image.repository` / `image.tag` | `ghcr.io/matvi-consulting/pritunl-docker-image` / `1.2.0` | Image Pritunl |
+| `readinessProbe` | TCP 443 | Sonde de disponibilité (`null` pour désactiver) |
+| `livenessProbe` | `pgrep -f "pritunl start"` | Sonde de vie (`null` pour désactiver) |
 | `service.type` | `LoadBalancer` | Type de Service |
 | `service.openvpn.enabled` | `true` | Expose OpenVPN (TCP 1194) |
 | `service.wireguard.enabled` / `.port` | `false` / `1195` | Expose WireGuard (UDP) — opt-in |

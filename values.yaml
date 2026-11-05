@@ -19,8 +19,9 @@ image:
   # Image Pritunl custom Matvi : embarque iproute2 / iptables / wireguard-tools,
   # indispensables à la création de l'interface tun/WireGuard.
   repository: ghcr.io/matvi-consulting/pritunl-docker-image
-  # Tag épinglé sur un SHA (build avec iproute2/iptables). À mettre à jour au besoin.
-  tag: 626a509a6ccb825936c6960984b8a639888166b3
+  # Version semver de l'image (releases : github.com/MATVI-CONSULTING/pritunl-docker-image/releases).
+  # Suivie par Dependabot (écosystème helm).
+  tag: "1.2.0"
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
@@ -108,10 +109,25 @@ service:
   # loadBalancerSourceRanges:
   # - 10.10.10.0/24
 
+## Sondes du conteneur Pritunl (objets Probe Kubernetes, rendus tels quels).
+## Mettre à null pour désactiver une sonde (ex. `--set livenessProbe=null`).
+## readiness : la console web écoute sur 443 une fois Pritunl démarré (et connecté
+## à MongoDB). Tant qu'elle échoue, le pod est retiré du Service.
 readinessProbe:
+  tcpSocket:
+    port: https
   initialDelaySeconds: 5
   periodSeconds: 15
   successThreshold: 1
+## liveness : équivalent du HEALTHCHECK de l'image (ignoré par Kubernetes) —
+## redémarre le conteneur si le processus `pritunl start` a disparu.
+livenessProbe:
+  exec:
+    command: ["pgrep", "-f", "pritunl start"]
+  initialDelaySeconds: 60
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
 
 ## Ingress vers l'UI web. Le backend est en HTTPS (Pritunl écoute en 443) :
 ## ajoutez l'annotation propre à votre contrôleur, ex. ingress-nginx :
