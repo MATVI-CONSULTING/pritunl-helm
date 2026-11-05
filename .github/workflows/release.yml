@@ -1,17 +1,36 @@
 name: Release Chart
 
-# Sur un tag `v*` : publie le chart en artefact OCI sur GHCR et crée la GitHub
-# Release correspondante (notes tirées du CHANGELOG, .tgz en pièce jointe).
-# Le tag doit correspondre à `version` dans Chart.yaml.
-# Ex. : git tag -a v2.1.0 -m v2.1.0 && git push origin v2.1.0
+# Seule voie de release : lancement manuel (onglet Actions, ou ./release.sh).
+# Cree le tag vX.Y.Z sur le commit donne, publie le chart en artefact OCI sur
+# GHCR, puis la GitHub Release (notes : saisies, sinon section X.Y.Z du
+# CHANGELOG, sinon generees ; .tgz en piece jointe).
+# La version doit egaler `version` dans Chart.yaml au commit donne.
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version semver sans le v (ex: 2.3.0), doit egaler version de Chart.yaml"
+        required: true
+        type: string
+      commit:
+        description: "SHA du commit a releaser (doit etre sur main)"
+        required: true
+        type: string
+      notes:
+        description: "Notes de release (vide = section du CHANGELOG, sinon notes generees)"
+        required: false
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io
   OCI_REPO: oci://ghcr.io/matvi-consulting/charts
+  VERSION: ${{ inputs.version }}
+  COMMIT: ${{ inputs.commit }}
+  TAG: v${{ inputs.version }}
 
 jobs:
   release:
@@ -21,20 +40,33 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
 
       - name: Install Helm
         uses: azure/setup-helm@v5
         with:
           version: v3.16.2
 
-      - name: Vérifier que le tag correspond à Chart.yaml
+      - name: Valider version, tag, commit et Chart.yaml
         run: |
           set -euo pipefail
-          CHART_VERSION=$(sed -n 's/^version: *//p' Chart.yaml)
-          if [ "v${CHART_VERSION}" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} ≠ version ${CHART_VERSION} de Chart.yaml" >&2
-            exit 1
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Version invalide '$VERSION' (attendu X.Y.Z, sans v)"; exit 1
           fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Le tag $TAG existe deja"; exit 1
+          fi
+          SHA=$(git rev-parse --verify "$COMMIT^{commit}")
+          if ! git merge-base --is-ancestor "$SHA" origin/main; then
+            echo "::error::Le commit $SHA n'est pas sur main"; exit 1
+          fi
+          CHART_VERSION=$(sed -n 's/^version: *//p' Chart.yaml)
+          if [[ "$CHART_VERSION" != "$VERSION" ]]; then
+            echo "::error::Chart.yaml version=$CHART_VERSION mais version demandee=$VERSION"; exit 1
+          fi
+          echo "SHA=$SHA" >> "$GITHUB_ENV"
 
       - name: Login GHCR
         run: |
@@ -50,14 +82,29 @@ jobs:
           CHART_TGZ=$(ls dist/pritunl-*.tgz)
           helm push "$CHART_TGZ" "${{ env.OCI_REPO }}"
 
-      - name: GitHub Release
+      # Apres le push OCI : un echec avant ne laisse ni tag ni release.
+      - name: Creer le tag et la release
         env:
           GH_TOKEN: ${{ github.token }}
+          NOTES: ${{ inputs.notes }}
         run: |
           set -euo pipefail
-          # Section « ## [X.Y.Z] » du CHANGELOG, jusqu'à la suivante.
-          awk -v v="${GITHUB_REF_NAME#v}" \
-            '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' \
-            CHANGELOG.md > notes.md
-          gh release create "${GITHUB_REF_NAME}" dist/pritunl-*.tgz \
-            --title "${GITHUB_REF_NAME}" --notes-file notes.md --verify-tag
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" "$SHA" -m "Release $VERSION"
+          git push origin "refs/tags/$TAG"
+          if [[ -n "$NOTES" ]]; then
+            printf '%s\n' "$NOTES" > notes.md
+          else
+            # Section « ## [X.Y.Z] » du CHANGELOG, jusqu'a la suivante.
+            awk -v v="$VERSION" \
+              '/^## \[/ { p = index($0, "## [" v "]") == 1; next } p' \
+              CHANGELOG.md > notes.md
+          fi
+          if [[ -s notes.md ]] && grep -q '[^[:space:]]' notes.md; then
+            gh release create "$TAG" dist/pritunl-*.tgz \
+              --title "$TAG" --notes-file notes.md --verify-tag
+          else
+            gh release create "$TAG" dist/pritunl-*.tgz \
+              --title "$TAG" --generate-notes --verify-tag
+          fi

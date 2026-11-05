@@ -204,10 +204,14 @@ l'IP du LoadBalancer et le **WG Port** sur `service.wireguard.port` (1195).
 1. Monter `version` dans `Chart.yaml` (SemVer : majeure si les values ou les
    ressources changent de façon incompatible) et compléter le
    [CHANGELOG](CHANGELOG.md).
-2. Après merge sur `main`, taguer le commit : `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
-3. Le workflow *Release Chart* vérifie que le tag correspond à `Chart.yaml`,
-   publie `oci://ghcr.io/matvi-consulting/charts/pritunl:X.Y.Z` et crée la
-   GitHub Release (notes = section `X.Y.Z` du CHANGELOG, `.tgz` joint).
+2. Après merge sur `main`, lancer `./release.sh` : il demande la version et
+   déclenche le workflow *Release Chart* sur le dernier commit de `main`
+   (équivalent : `gh workflow run release.yml -f version=X.Y.Z -f commit=<sha>`,
+   ou onglet **Actions** → **Release Chart** → **Run workflow**).
+3. Le workflow vérifie que la version correspond à `Chart.yaml`, publie
+   `oci://ghcr.io/matvi-consulting/charts/pritunl:X.Y.Z`, crée le tag `vX.Y.Z`
+   et la GitHub Release (notes = section `X.Y.Z` du CHANGELOG, `.tgz` joint).
+   Ne pas créer le tag à la main.
 
 ## Licence
 
