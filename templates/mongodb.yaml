@@ -19,15 +19,15 @@ metadata:
   labels:
     {{- include "pritunl.mongodb.labels" . | nindent 4 }}
 type: Opaque
+{{- /*
+Mots de passe conservés clé par clé depuis le Secret existant (pas de rotation à
+l'upgrade). Une clé absente, par ex. `mongodb-passwords` dans un Secret Bitnami
+déployé sans utilisateur applicatif, est générée au lieu d'être rendue vide.
+*/}}
+{{- $existing := default dict (and $secret $secret.data) }}
 data:
-  {{- if $secret }}
-  # Mots de passe conservés d'une révision précédente (pas de rotation à l'upgrade).
-  mongodb-root-password: {{ index $secret.data "mongodb-root-password" }}
-  mongodb-passwords: {{ index $secret.data "mongodb-passwords" }}
-  {{- else }}
-  mongodb-root-password: {{ randAlphaNum 24 | b64enc }}
-  mongodb-passwords: {{ randAlphaNum 24 | b64enc }}
-  {{- end }}
+  mongodb-root-password: {{ get $existing "mongodb-root-password" | default (randAlphaNum 24 | b64enc) }}
+  mongodb-passwords: {{ get $existing "mongodb-passwords" | default (randAlphaNum 24 | b64enc) }}
 ---
 # Crée l'utilisateur applicatif au premier démarrage sur un volume vide
 # (ignoré par l'entrypoint de l'image officielle si des données existent).

@@ -113,11 +113,17 @@ service:
 ## Mettre à null pour désactiver une sonde (ex. `--set livenessProbe=null`).
 ## readiness : la console web écoute sur 443 une fois Pritunl démarré (et connecté
 ## à MongoDB). Tant qu'elle échoue, le pod est retiré du Service.
+## GET HTTPS sur /check (200 "OK", sans authentification ; le kubelet ignore le
+## certificat autosigné). Une sonde tcpSocket coupait la connexion avant le
+## handshake TLS et remplissait les logs de « http: TLS handshake error ».
 readinessProbe:
-  tcpSocket:
+  httpGet:
+    path: /check
     port: https
+    scheme: HTTPS
   initialDelaySeconds: 5
   periodSeconds: 15
+  timeoutSeconds: 3
   successThreshold: 1
 ## liveness : équivalent du HEALTHCHECK de l'image (ignoré par Kubernetes) —
 ## redémarre le conteneur si le processus `pritunl start` a disparu.
