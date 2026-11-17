@@ -3,6 +3,18 @@
 Format inspiré de [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) ;
 versions du chart en [SemVer](https://semver.org/lang/fr/).
 
+## [2.3.1] - 2026-11-17
+
+### Corrigé
+
+- `readinessProbe` : `httpGet` HTTPS sur `/check` au lieu de `tcpSocket`. La sonde
+  TCP fermait la connexion avant le handshake TLS, d'où une ligne
+  `http: TLS handshake error` toutes les 15 s dans les logs.
+- Secret MongoDB embarqué : les mots de passe sont repris clé par clé depuis le
+  Secret existant. Un Secret hérité du subchart Bitnami sans `mongodb-passwords`
+  produisait une clé vide (Pritunl sans mot de passe) ; la clé manquante est
+  désormais générée. Plus besoin de supprimer ce Secret à la main avant l'upgrade.
+
 ## [2.3.0] - 2026-11-05
 
 ### Modifié
